@@ -5,20 +5,29 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const port = 8080;
 
+const LokiStore = require('connect-loki')(session);
 app.use(cors({
     origin : true,
     credentials : true
 }));
 
 app.use(bodyParser.json());
+app.use(session({
+    key: 'is_logined',
+    store: new LokiStore(),
+    secret: '@#$mydelivermon$#@',
+    resave: false,      
+    saveUninitialized: true,     //uninitialized session 저장
+}));
 
-const mysql = require('mysql');
-const conn = mysql.createConnection({
+const mariadb = require('mariadb');
+const pool = mariadb.createPool({
     host: 'localhost',
     port: '3306',
     user: 'root',
     password: '12345',
-    database: 'delivermon'
+    database: 'delivermon',
+    connectionLimit: 10
 });
 
 const kakao = {
@@ -35,29 +44,42 @@ const naver = {
     grant_type: 'authorization_code'
 }
 
-function signUpDB(id, pw, name){
+async function signUpDB(id, pw, name, phone, address){    //user 테이블에 회원가입 정보 넣기
+    let conn,sql,rows;
     try{
-        let connection = mysql.createConnection(conn);      //DB커넥션 생성
-        connection.connect();       //DB접속
+        conn = await pool.getConnection();     //DB커넥션 생성 
 
-        let sql = connect.query("INSERT INTO user (ID,PW,USER_NAME) VALUES(?, ?, ?)", [id, pw, name]);
+        sql = await conn.query("INSERT INTO user (ID,PW,USER_NAME,PHONE,ADDRESS) VALUES(?, ?, ?, ?, ?)", [id, pw, name, phone, address]);      
         console.log("insert");
 
+        rows = await conn.query("SELECT * FROM user");
+        console.log("rows");
+        console.log(rows); 
     } catch (err) {
-        console.log(err);
+        throw err;
     } finally {
-        
+        if (conn) conn.release();
+        return rows;
     }
 }
 
 app.post('/signup', (req, res) => {
     try {
-        let connection = mysql.createConnection(conn);      //DB커넥션 생성
-        connection.connect();       //DB접속
-        const sqlResult = signUpDB(id, pw, name)
+
+        const {
+            id,
+            pw,
+            name,
+            phone,
+            address
+        } = req.body;
+        
+        const sqlResult = signUpDB(id, pw, name, phone, address);
+        console.log(sqlResult);
+        res.send({'msg':'회원가입이 되었습니다.'})
     }catch (err) {
-        console.log(err)
-        res.status(500).send(err)
+        console.log(err);
+        res.status(500).send(err);
     }
 })
 
