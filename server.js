@@ -23,7 +23,6 @@ app.use(session({
 const mariadb = require('mariadb');
 const pool = mariadb.createPool({
     host: 'localhost',
-    port: '3306',
     user: 'root',
     password: '12345',
     database: 'delivermon',
@@ -45,27 +44,50 @@ const naver = {
 }
 
 async function signUpDB(id, pw, name, phone, address){    //user 테이블에 회원가입 정보 넣기
-    let conn,sql,rows;
+    let conn;
     try{
         conn = await pool.getConnection();     //DB커넥션 생성 
+        console.log('conn');
 
-        sql = await conn.query("INSERT INTO user (ID,PW,USER_NAME,PHONE,ADDRESS) VALUES(?, ?, ?, ?, ?)", [id, pw, name, phone, address]);      
+        const sql = await conn.query("INSERT INTO user (ID, PW, USER_NAME, PHONE, ADDRESS) VALUE(?, ?, ?, ?, ?)", [id, pw, name, phone, address],
+        function(err, result, fields){
+            if(err) throw err;
+            console.log('insert!!!', result);
+        });       
         console.log("insert");
 
-        rows = await conn.query("SELECT * FROM user");
+        const rows = await conn.query("SELECT * FROM user WHERE id = ? and pw = ?", [id, pw], 
+        function(error, results, fields) {
+            if(error) console.log(error);
+            console.log(results);
+        });
         console.log("rows");
         console.log(rows); 
     } catch (err) {
         throw err;
     } finally {
         if (conn) conn.release();
-        return rows;
     }
 }
 
-app.post('/signup', (req, res) => {
-    try {
+// function signUpDB (id, pw, name, phone, address) {
+//     pool.getConnection((error, connection) => {        // getConnection -> 커넥션 풀에서 커넥션 가져오기
+//         console.log('________________');
+//         connection.query('INSERT INTO user (ID, PW, USER_NAME, PHONE, ADDRESS) VALUES(?, ?, ?, ?, ?)' [id, pw, name, phone, address],
+//         (error, result, fields) => {
+//         if(!error){
+//             console.log('결과', result);
+//             connection.release();   // 커넥션 풀에 커넥션 반환
+//         } else {
+//             throw error;
+//         }
+//         })
+//     })
 
+// }
+
+app.post('/signup', (req, res) => {
+    (async () => {
         const {
             id,
             pw,
@@ -73,14 +95,18 @@ app.post('/signup', (req, res) => {
             phone,
             address
         } = req.body;
-        
+
+        //console.log(req.body);
         const sqlResult = signUpDB(id, pw, name, phone, address);
-        console.log(sqlResult);
-        res.send({'msg':'회원가입이 되었습니다.'})
-    }catch (err) {
-        console.log(err);
-        res.status(500).send(err);
-    }
+
+        try {    
+            //console.log(req.body);
+            //res.send({msg: '회원가입이 완료되었습니다.'});
+        }catch (err) {
+            console.log(err);
+            res.status(500).send(err);
+        }
+    })()
 })
 
 app.post('/login', (req, res) => {
