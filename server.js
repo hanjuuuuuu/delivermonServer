@@ -43,52 +43,26 @@ const naver = {
     grant_type: 'authorization_code'
 }
 
-async function signUpDB(id, pw, name, phone, address){    //user 테이블에 회원가입 정보 넣기
+async function signUpDB(id, pw, name, category, phone, address){    //user 테이블에 회원가입 정보 넣기
     let conn;
     try{
-        conn = await pool.getConnection();     //DB커넥션 생성 
+        conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
         console.log('conn');
 
-        const sql = await conn.query("INSERT INTO user (ID, PW, USER_NAME, PHONE, ADDRESS) VALUE(?, ?, ?, ?, ?)", [id, pw, name, phone, address],
-        function(err, result, fields){
-            if(err) throw err;
-            console.log('insert!!!', result);
-        });       
+        const sql = await conn.query("INSERT INTO user (ID, PW, USER_NAME, CATEGORY, PHONE, ADDRESS) VALUE(?, ?, ?, ?, ?, ?)", [id, pw, name, category, phone, address]);
         console.log("insert");
 
-        const rows = await conn.query("SELECT * FROM user WHERE id = ? and pw = ?", [id, pw], 
-        function(error, results, fields) {
-            if(error) console.log(error);
-            console.log(results);
-        });
-        console.log("rows");
-        console.log(rows); 
     } catch (err) {
         throw err;
     } finally {
-        if (conn) conn.release();
+        if (conn) conn.release();       // 커넥션 풀에 커넥션 반환
     }
 }
-
-// function signUpDB (id, pw, name, phone, address) {
-//     pool.getConnection((error, connection) => {        // getConnection -> 커넥션 풀에서 커넥션 가져오기
-//         console.log('________________');
-//         connection.query('INSERT INTO user (ID, PW, USER_NAME, PHONE, ADDRESS) VALUES(?, ?, ?, ?, ?)' [id, pw, name, phone, address],
-//         (error, result, fields) => {
-//         if(!error){
-//             console.log('결과', result);
-//             connection.release();   // 커넥션 풀에 커넥션 반환
-//         } else {
-//             throw error;
-//         }
-//         })
-//     })
-
-// }
 
 app.post('/signup', (req, res) => {
     (async () => {
         const {
+            category,
             id,
             pw,
             name,
@@ -96,12 +70,10 @@ app.post('/signup', (req, res) => {
             address
         } = req.body;
 
-        //console.log(req.body);
-        const sqlResult = signUpDB(id, pw, name, phone, address);
+        const sqlResult = signUpDB(id, pw, name, category, phone, address);
 
         try {    
-            //console.log(req.body);
-            //res.send({msg: '회원가입이 완료되었습니다.'});
+            res.send({msg: '회원가입이 완료되었습니다.'});
         }catch (err) {
             console.log(err);
             res.status(500).send(err);
@@ -109,10 +81,41 @@ app.post('/signup', (req, res) => {
     })()
 })
 
-app.post('/login', (req, res) => {
+async function signInDB(id, pw){    //user 테이블에 저장된 회원인지 확인
+    let conn;
+    try{
+        conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
+        console.log('conn');
 
+        const rows = await conn.query("SELECT * FROM user WHERE id = ? and pw = ?", [id, pw]);
+        console.log("rows");
+
+        if(rows[0] === undefined) {         //저장된 id,pw가 없으면 로그인 실패
+            console.log('no');
+            return 'no';
+        }
+        else {
+            console.log(rows[0]);
+            return rows[0];
+        }
+    } catch (err) {
+        throw err;
+    } finally {
+        if (conn) conn.release();       // 커넥션 풀에 커넥션 반환
+    }
+}
+
+app.post('/login', (req, res) => {      //로그인 요청 받으면 db에 회원정보 있는지 확인하고 client로 결과 보내기
+    let id = req.body.id;
+    let pw = req.body.pw;
+    let category = req.body.category;
+
+    (async() => {
+        let check = await signInDB(id, pw);
+        res.send(JSON.stringify(check));
+    })()
+    
 })
-
 
 
 app.get('/logincheck', function (req, res){
