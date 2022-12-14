@@ -43,15 +43,22 @@ const naver = {
     grant_type: 'authorization_code'
 }
 
-async function signUpDB(id, pw, name, category, phone, address){    //user 테이블에 회원가입 정보 넣기
+async function signUpDB(id, pw, name, category, phone, address){    //category에 따라 user/store/rider 테이블에 회원가입 정보 넣기
     let conn;
     try{
         conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
         console.log('conn');
 
-        const sql = await conn.query("INSERT INTO user (ID, PW, USER_NAME, CATEGORY, PHONE, ADDRESS) VALUE(?, ?, ?, ?, ?, ?)", [id, pw, name, category, phone, address]);
-        console.log("insert");
-
+        if(category === 'user'){
+            const sqluser = await conn.query("INSERT INTO user (ID, PW, USER_NAME, CATEGORY, PHONE, ADDRESS) VALUE(?, ?, ?, ?, ?, ?)", [id, pw, name, category, phone, address]);
+            console.log("user insert");
+        } else if(category === 'store'){
+            const sqlstore = await conn.query("INSERT INTO store (ID, PW, STORE_NAME, PHONE, LOCATION) VALUE(?, ?, ?, ?, ?)", [id, pw, name, phone, address]);
+            console.log("store insert");
+        } else if(category === 'rider'){
+            const sqlrider = await conn.query("INSERT INTO rider(ID, PW, RIDER_NAME, PHONE, ADDRESS) VALUE(?, ?, ?, ?, ?)", [id, pw, name, phone, address]);
+            console.log("rider insert");
+        }
     } catch (err) {
         throw err;
     } finally {
@@ -70,9 +77,8 @@ app.post('/signup', (req, res) => {
             address
         } = req.body;
 
-        const sqlResult = signUpDB(id, pw, name, category, phone, address);
-
         try {    
+            const sqlResult = signUpDB(id, pw, name, category, phone, address);
             res.send({msg: '회원가입이 완료되었습니다.'});
         }catch (err) {
             console.log(err);
@@ -81,14 +87,23 @@ app.post('/signup', (req, res) => {
     })()
 })
 
-async function signInDB(id, pw){    //user 테이블에 저장된 회원인지 확인
+async function signInDB(id, pw, category){    //user, store, rider 테이블에 저장된 회원인지 확인
     let conn;
+    let rows;
     try{
         conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
         console.log('conn');
 
-        const rows = await conn.query("SELECT * FROM user WHERE id = ? and pw = ?", [id, pw]);
-        console.log("rows");
+        if(category === 'user'){
+            rows = await conn.query("SELECT * FROM user WHERE id = ? and pw = ?", [id, pw]);
+            console.log("rowsuser");
+        }else if(category === 'store'){
+            rows = await conn.query("SELECT * FROM store WHERE id = ? and pw = ?", [id, pw]); 
+            console.log("rowsstore");  
+        }else if(category === 'rider'){
+            rows = await conn.query("SELECT * FROM rider WHERE id = ? and pw = ?", [id, pw]);
+            console.log("rowsrider");
+        }
 
         if(rows[0] === undefined) {         //저장된 id,pw가 없으면 로그인 실패
             console.log('no');
@@ -105,13 +120,13 @@ async function signInDB(id, pw){    //user 테이블에 저장된 회원인지 �
     }
 }
 
-app.post('/login', (req, res) => {      //로그인 요청 받으면 db에 회원정보 있는지 확인하고 client로 결과 보내기
+app.post('/login', (req, res) => {      //로그인 요청 받으면 db 해당 카테고리 테이블에 회원정보 있는지 확인하고 client로 결과 보내기
     let id = req.body.id;
     let pw = req.body.pw;
     let category = req.body.category;
 
     (async() => {
-        let check = await signInDB(id, pw);
+        let check = await signInDB(id, pw, category);
         res.send(JSON.stringify(check));
     })()
     
