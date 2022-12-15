@@ -135,7 +135,7 @@ app.post('/login', (req, res) => {      //로그인 요청 받으면 db 해당 �
 
 app.get('/logincheck', function (req, res){
     console.log('check')
-
+    console.log(req.session);
     if(req.session.is_logined != true){
         console.log("로그인 안된 경우");
     }
@@ -143,6 +143,20 @@ app.get('/logincheck', function (req, res){
         res.send(req.session.is_logined);
         console.log("로그인 된 경우")
     }
+})
+
+app.post('/logout', function (req, res){
+    console.log('logout');
+    req.session.destroy();
+    const html = `<html>
+                            <script>
+                                function gotoMain() {
+                                    window.location = 'http://localhost:3000'
+                                }
+                                gotoMain();
+                            </script>
+                        </html>`
+    res.send(html);
 })
 
 app.get('/auth/kakao/callback', function (req, res) {     //인가코드를 카카오 서버로 보내고 유효 토큰을 받는다.
