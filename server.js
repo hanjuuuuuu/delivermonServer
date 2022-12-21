@@ -1,8 +1,8 @@
 const express = require('express');
-const session = require('express-session');
 const app = express();
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const session = require('express-session');
 const port = 8080;
 
 const LokiStore = require('connect-loki')(session);
@@ -66,7 +66,7 @@ async function signUpDB(id, pw, name, category, phone, address){    //category�
     }
 }
 
-app.post('/signup', (req, res) => {
+app.post('/signup', (req, res) => {     //signUpDB를 통해 회원가입하기
     (async () => {
         const {
             category,
@@ -96,13 +96,10 @@ async function signInDB(id, pw, category){    //user, store, rider 테이블에 
 
         if(category === 'user'){
             rows = await conn.query("SELECT * FROM user WHERE id = ? and pw = ?", [id, pw]);
-            console.log("rowsuser");
         }else if(category === 'store'){
-            rows = await conn.query("SELECT * FROM store WHERE id = ? and pw = ?", [id, pw]); 
-            console.log("rowsstore");  
+            rows = await conn.query("SELECT * FROM store WHERE id = ? and pw = ?", [id, pw]);  
         }else if(category === 'rider'){
             rows = await conn.query("SELECT * FROM rider WHERE id = ? and pw = ?", [id, pw]);
-            console.log("rowsrider");
         }
 
         if(rows[0] === undefined) {         //저장된 id,pw가 없으면 로그인 실패
@@ -124,9 +121,13 @@ app.post('/login', (req, res) => {      //로그인 요청 받으면 db 해당 �
     let id = req.body.id;
     let pw = req.body.pw;
     let category = req.body.category;
+    let remember = req.body.remember;
 
     (async() => {
         let check = await signInDB(id, pw, category);
+        if(remember === true){
+            req.session.is_logined = true;
+        }
         res.send(JSON.stringify(check));
     })()
     
@@ -141,7 +142,7 @@ app.get('/logincheck', function (req, res){
     }
     else{
         res.send(req.session.is_logined);
-        console.log("로그인 된 경우")
+        console.log("로그인 된 경우");
     }
 })
 
