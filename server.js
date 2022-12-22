@@ -90,16 +90,20 @@ app.post('/signup', (req, res) => {     //signUpDB를 통해 회원가입하기
 async function signInDB(id, pw, category){    //user, store, rider 테이블에 저장된 회원인지 확인
     let conn;
     let rows;
+    var usercode, storecode, ridercode;
     try{
         conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
         console.log('conn');
 
         if(category === 'user'){
             rows = await conn.query("SELECT * FROM user WHERE id = ? and pw = ?", [id, pw]);
+            usercode = await conn.query("SELECT USER_CODE FROM user WHERE id = ? and pw = ?" , [id, pw]);
         }else if(category === 'store'){
             rows = await conn.query("SELECT * FROM store WHERE id = ? and pw = ?", [id, pw]);  
+            storecode = await conn.query("SELECT STORE_CODE FROM store WHERE id = ? and pw = ?", [id, pw]);
         }else if(category === 'rider'){
             rows = await conn.query("SELECT * FROM rider WHERE id = ? and pw = ?", [id, pw]);
+            ridercode = await conn.query("SELECT RIDER_CODE FROM rider WHERE id = ? and pw = ?", [id, pw]);
         }
 
         if(rows[0] === undefined) {         //저장된 id,pw가 없으면 로그인 실패
@@ -131,6 +135,38 @@ app.post('/login', (req, res) => {      //로그인 요청 받으면 db 해당 �
         res.send(JSON.stringify(check));
     })()
     
+})
+
+async function menuInsert(storecode, name, price){
+    let conn;
+    try{
+        conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
+        console.log('conn');
+
+        const sqlmenu = await conn.query("INSERT INTO menu (STORE_CODE, FOOD_NAME, PRICE) value(?, ?, ?)", [storecode, name, price]);
+
+    } catch (err) {
+        throw err;
+    } finally {
+        if (conn) conn.release();       // 커넥션 풀에 커넥션 반환
+    }
+
+}
+
+app.post('/menuinsert', (req, res) => {
+    (async() =>{
+        let storecode = req.body.storecode;
+        let foodname = req.body.foodname;
+        let price = req.body.price;
+        
+        try{
+            const sqlResult = await menuInsert(storecode,foodname, price);
+            res.send({msg: '메뉴가 등록되었습니다.'});
+
+        }catch (err) {
+            console.log(err);
+        }
+    })()
 })
 
 
