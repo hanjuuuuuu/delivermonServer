@@ -43,6 +43,8 @@ const naver = {
     grant_type: 'authorization_code'
 }
 
+var usercode, storecode, ridercode;
+
 async function signUpDB(id, pw, name, category, phone, address){    //category에 따라 user/store/rider 테이블에 회원가입 정보 넣기
     let conn;
     try{
@@ -51,13 +53,10 @@ async function signUpDB(id, pw, name, category, phone, address){    //category�
 
         if(category === 'user'){
             const sqluser = await conn.query("INSERT INTO user (ID, PW, USER_NAME, CATEGORY, PHONE, ADDRESS) VALUE(?, ?, ?, ?, ?, ?)", [id, pw, name, category, phone, address]);
-            console.log("user insert");
         } else if(category === 'store'){
             const sqlstore = await conn.query("INSERT INTO store (ID, PW, STORE_NAME, PHONE, LOCATION) VALUE(?, ?, ?, ?, ?)", [id, pw, name, phone, address]);
-            console.log("store insert");
         } else if(category === 'rider'){
             const sqlrider = await conn.query("INSERT INTO rider(ID, PW, RIDER_NAME, PHONE, ADDRESS) VALUE(?, ?, ?, ?, ?)", [id, pw, name, phone, address]);
-            console.log("rider insert");
         }
     } catch (err) {
         throw err;
@@ -90,10 +89,9 @@ app.post('/signup', (req, res) => {     //signUpDB를 통해 회원가입하기
 async function signInDB(id, pw, category){    //user, store, rider 테이블에 저장된 회원인지 확인
     let conn;
     let rows;
-    var usercode, storecode, ridercode;
     try{
         conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
-        console.log('conn');
+        console.log('signIn conn');
 
         if(category === 'user'){
             rows = await conn.query("SELECT * FROM user WHERE id = ? and pw = ?", [id, pw]);
@@ -101,6 +99,7 @@ async function signInDB(id, pw, category){    //user, store, rider 테이블에 
         }else if(category === 'store'){
             rows = await conn.query("SELECT * FROM store WHERE id = ? and pw = ?", [id, pw]);  
             storecode = await conn.query("SELECT STORE_CODE FROM store WHERE id = ? and pw = ?", [id, pw]);
+            var storecodevalue = Object.values([storecode]);
         }else if(category === 'rider'){
             rows = await conn.query("SELECT * FROM rider WHERE id = ? and pw = ?", [id, pw]);
             ridercode = await conn.query("SELECT RIDER_CODE FROM rider WHERE id = ? and pw = ?", [id, pw]);
@@ -112,6 +111,7 @@ async function signInDB(id, pw, category){    //user, store, rider 테이블에 
         }
         else {
             console.log(rows[0]);
+            console.log('HERE',rows[0].STORE_CODE)
             return rows[0];
         }
     } catch (err) {
@@ -155,12 +155,12 @@ async function menuInsert(storecode, name, price){
 
 app.post('/menuinsert', (req, res) => {
     (async() =>{
-        let storecode = req.body.storecode;
+        let menustorecode = storecodevalue;
         let foodname = req.body.foodname;
         let price = req.body.price;
         
         try{
-            const sqlResult = await menuInsert(storecode,foodname, price);
+            const sqlResult = await menuInsert(menustorecode,foodname, price);
             res.send({msg: '메뉴가 등록되었습니다.'});
 
         }catch (err) {
