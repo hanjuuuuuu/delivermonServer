@@ -43,7 +43,7 @@ const naver = {
     grant_type: 'authorization_code'
 }
 
-var usercode, storecode, ridercode;
+var usercode, storecode, ridercode, codevalues;
 
 async function signUpDB(id, pw, name, category, phone, address){    //category에 따라 user/store/rider 테이블에 회원가입 정보 넣기
     let conn;
@@ -99,7 +99,8 @@ async function signInDB(id, pw, category){    //user, store, rider 테이블에 
         }else if(category === 'store'){
             rows = await conn.query("SELECT * FROM store WHERE id = ? and pw = ?", [id, pw]);  
             storecode = await conn.query("SELECT STORE_CODE FROM store WHERE id = ? and pw = ?", [id, pw]);
-            var storecodevalue = Object.values([storecode]);
+            codevalues = Object.values(storecode[0]);
+            
         }else if(category === 'rider'){
             rows = await conn.query("SELECT * FROM rider WHERE id = ? and pw = ?", [id, pw]);
             ridercode = await conn.query("SELECT RIDER_CODE FROM rider WHERE id = ? and pw = ?", [id, pw]);
@@ -111,7 +112,6 @@ async function signInDB(id, pw, category){    //user, store, rider 테이블에 
         }
         else {
             console.log(rows[0]);
-            console.log('HERE',rows[0].STORE_CODE)
             return rows[0];
         }
     } catch (err) {
@@ -137,6 +137,32 @@ app.post('/login', (req, res) => {      //로그인 요청 받으면 db 해당 �
     
 })
 
+async function menuSelect(codevalues){
+    let conn;
+    try{
+        conn = await pool.getConnection();
+        const sqlselect = await conn.query(`SELECT FOOD_CODE AS "key", FOOD_NAME, PRICE FROM menu WHERE STORE_CODE = ?`, codevalues);
+        console.log(sqlselect);
+        return sqlselect;
+    }
+    catch (err){
+        throw err;
+    } finally {
+        if(conn) conn.release();
+    }
+}
+
+app.post('/callmenu', (req, res) => {
+    (async () => {
+        try{
+            const sqlcallmenu = await menuSelect(codevalues);
+            res.send(JSON.stringify(sqlcallmenu));
+        }catch(err){
+            console.log(err);
+        }}
+    )()
+})
+
 async function menuInsert(storecode, name, price){
     let conn;
     try{
@@ -155,7 +181,7 @@ async function menuInsert(storecode, name, price){
 
 app.post('/menuinsert', (req, res) => {
     (async() =>{
-        let menustorecode = storecodevalue;
+        let menustorecode = codevalues;
         let foodname = req.body.foodname;
         let price = req.body.price;
         
