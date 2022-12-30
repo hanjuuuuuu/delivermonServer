@@ -137,6 +137,31 @@ app.post('/login', (req, res) => {      //로그인 요청 받으면 db 해당 �
     
 })
 
+async function storeList(){
+    let conn;
+    try{
+        conn = await pool.getConnection();
+        const sqllist = await conn.query("SELECT STORE_NAME FROM store");
+        console.log(sqllist);
+        return sqllist;
+    } catch (err){
+        throw err;
+    } finally {
+        if(conn) conn.release();
+    }
+}
+
+app.post('/callstore', (req, res) => {
+    (async() => {
+        try{
+            const sqlcallstore = await storeList();
+            res.send(JSON.stringify(sqlcallstore));
+        } catch(err) {
+            console.log(err);
+        }
+    })()
+})
+
 async function menuSelect(codevalues){
     let conn;
     try{
