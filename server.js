@@ -11,11 +11,12 @@ app.use(cors({
     credentials : true
 }));
 
+app.use(express.json());
 app.use(bodyParser.json());
 app.use(session({
     key: 'is_logined',
     store: new LokiStore(),
-    secret: '@#$mydelivermon$#@',
+    secret: '@#$mydelivermon$#@', 
     resave: false,      
     saveUninitialized: true,     //uninitialized session 저장
 }));
@@ -141,7 +142,7 @@ async function storeList(){
     let conn;
     try{
         conn = await pool.getConnection();
-        const sqllist = await conn.query("SELECT STORE_NAME FROM store");
+        const sqllist = await conn.query(`SELECT STORE_CODE AS "key", STORE_NAME FROM store`);
         console.log(sqllist);
         return sqllist;
     } catch (err){
@@ -201,7 +202,6 @@ async function menuInsert(storecode, name, price){
     } finally {
         if (conn) conn.release();       // 커넥션 풀에 커넥션 반환
     }
-
 }
 
 app.post('/menuinsert', (req, res) => {
@@ -215,6 +215,63 @@ app.post('/menuinsert', (req, res) => {
             res.send({msg: '메뉴가 등록되었습니다.'});
 
         }catch (err) {
+            console.log(err);
+        }
+    })()
+})
+
+async function menuUpdate(storecode, name, price){
+    let conn;
+    try{
+        conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
+        console.log('conn');
+
+        const sqlmenu = await conn.query("ALTER TABLE menu (STORE_CODE, FOOD_NAME, PRICE) value(?, ?, ?)", [storecode, name, price]);
+    } catch (err) {
+        throw err;
+    } finally {
+        if (conn) conn.release();       // 커넥션 풀에 커넥션 반환
+    }
+
+}
+
+app.post('/menuupdate', (req, res) => {
+    (async() => {
+        let menustorecode = codevalues;
+        let foodname = req.body.foodname;
+        let price = req.body.price;
+        
+        try{
+            const sqlupdatemenu = await menuUpdate(menustorecode,foodname, price);
+            res.send({msg: '메뉴가 수정되었습니다.'});
+        }catch (err){
+            console.log(err);
+        }
+    })()
+})
+
+async function menuDelete(code){
+    let conn;
+    try{
+        conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
+        console.log('conn');
+
+        const sqlmenu = await conn.query("DELETE FROM menu WHERE FOOD_CODE = ?", [code]);
+    } catch (err) {
+        throw err;
+    } finally {
+        if (conn) conn.release();       // 커넥션 풀에 커넥션 반환
+    }
+
+}
+
+app.post('/menudelete', (req, res) => {
+    (async() => {
+        let foodcode = req.body.foodcode;
+        try{
+            const sqldeletemenu = await menuDelete(foodcode);
+            res.send({msg: '메뉴가 삭제되었습니다.'});
+        }catch (err){
             console.log(err);
         }
     })()
