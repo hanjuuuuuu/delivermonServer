@@ -50,7 +50,7 @@ async function signUpDB(id, pw, name, category, phone, address){    //category�
     let conn;
     try{
         conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
-        console.log('conn');
+        console.log('signup conn');
 
         if(category === 'user'){
             const sqluser = await conn.query("INSERT INTO user (ID, PW, USER_NAME, CATEGORY, PHONE, ADDRESS) VALUE(?, ?, ?, ?, ?, ?)", [id, pw, name, category, phone, address]);
@@ -101,7 +101,6 @@ async function signInDB(id, pw, category){    //user, store, rider 테이블에 
             rows = await conn.query("SELECT * FROM store WHERE id = ? and pw = ?", [id, pw]);  
             storecode = await conn.query("SELECT STORE_CODE FROM store WHERE id = ? and pw = ?", [id, pw]);
             codevalues = Object.values(storecode[0]);
-            
         }else if(category === 'rider'){
             rows = await conn.query("SELECT * FROM rider WHERE id = ? and pw = ?", [id, pw]);
             ridercode = await conn.query("SELECT RIDER_CODE FROM rider WHERE id = ? and pw = ?", [id, pw]);
@@ -112,7 +111,7 @@ async function signInDB(id, pw, category){    //user, store, rider 테이블에 
             return 'no';
         }
         else {
-            console.log(rows[0]);
+            //console.log(rows[0]);
             return rows[0];
         }
     } catch (err) {
@@ -138,7 +137,7 @@ app.post('/login', (req, res) => {      //로그인 요청 받으면 db 해당 �
     
 })
 
-async function storeList(){
+async function storeList(){     //store 테이블에서 모든 STORE_NAME 가져오기
     let conn;
     try{
         conn = await pool.getConnection();
@@ -163,12 +162,12 @@ app.post('/callstore', (req, res) => {
     })()
 })
 
-async function menuSelect(codevalues){
+async function menuSelect(codevalues){      //menu테이블에서 가게에 맞는 FOOD_NAME, PRICE 가져오기
     let conn;
     try{
         conn = await pool.getConnection();
         const sqlselect = await conn.query(`SELECT FOOD_CODE AS "key", FOOD_NAME, PRICE FROM menu WHERE STORE_CODE = ?`, codevalues);
-        console.log(sqlselect);
+        //console.log(sqlselect);
         return sqlselect;
     }
     catch (err){
@@ -179,6 +178,7 @@ async function menuSelect(codevalues){
 }
 
 app.post('/callmenu', (req, res) => {
+    let codevalues = req.body.storecode;
     (async () => {
         try{
             const sqlcallmenu = await menuSelect(codevalues);
@@ -189,7 +189,7 @@ app.post('/callmenu', (req, res) => {
     )()
 })
 
-async function menuInsert(storecode, name, price){
+async function menuInsert(storecode, name, price){      //menu 테이블에 메뉴 추가하기
     let conn;
     try{
         conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
@@ -206,9 +206,9 @@ async function menuInsert(storecode, name, price){
 
 app.post('/menuinsert', (req, res) => {
     (async() =>{
-        let menustorecode = codevalues;
-        let foodname = req.body.foodname;
-        let price = req.body.price;
+        let menustorecode = req.body.menuTemplete.storecode;
+        let foodname = req.body.menuTemplete.foodname;
+        let price = req.body.menuTemplete.price;
         
         try{
             const sqlResult = await menuInsert(menustorecode,foodname, price);
@@ -220,11 +220,41 @@ app.post('/menuinsert', (req, res) => {
     })()
 })
 
-async function menuUpdate(storecode, name, price){
+async function OrderInsert(){      //order_delivery 테이블에 주문 추가하기
     let conn;
     try{
         conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
         console.log('conn');
+
+        const sqlorder = await conn.query("INSERT INTO order_delivery () value()", []);
+
+    } catch (err) {
+        throw err;
+    } finally {
+        if (conn) conn.release();       // 커넥션 풀에 커넥션 반환
+    }
+}
+
+app.post('/orderinsert', (req, res) => {
+    (async() => {
+        let address = req.body.userOrderTemplete.address;
+        let phone = req.body.userOrderTemplete.phone;
+        let payment = req.body.userOrderTemplete.payment;
+        let requests = req.body.userOrderTemplete.requests;
+        
+        try{
+            const orderResult = await OrderInsert(address, phone, payment, requests);
+        }catch (err){
+            console.log(err);
+        }
+    })
+})
+
+async function menuUpdate(storecode, name, price){
+    let conn;
+    try{
+        conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
+        console.log('update conn');
 
         const sqlmenu = await conn.query("ALTER TABLE menu (STORE_CODE, FOOD_NAME, PRICE) value(?, ?, ?)", [storecode, name, price]);
     } catch (err) {
@@ -250,11 +280,11 @@ app.post('/menuupdate', (req, res) => {
     })()
 })
 
-async function menuDelete(code){
+async function menuDelete(code){        //menu 테이블에서 메뉴 삭제하기
     let conn;
     try{
         conn = await pool.getConnection();     //커넥션 풀에서 커넥션 가져오기
-        console.log('conn');
+        console.log('delete conn');
 
         const sqlmenu = await conn.query("DELETE FROM menu WHERE FOOD_CODE = ?", [code]);
     } catch (err) {
@@ -268,6 +298,7 @@ async function menuDelete(code){
 app.post('/menudelete', (req, res) => {
     (async() => {
         let foodcode = req.body.foodcode;
+        console.log('foodcode',foodcode)
         try{
             const sqldeletemenu = await menuDelete(foodcode);
             res.send({msg: '메뉴가 삭제되었습니다.'});
@@ -280,7 +311,6 @@ app.post('/menudelete', (req, res) => {
 
 app.get('/logincheck', function (req, res){
     console.log('check')
-    console.log(req.session);
     if(req.session.is_logined != true){
         console.log("로그인 안된 경우");
     }
